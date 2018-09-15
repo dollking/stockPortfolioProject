@@ -16,8 +16,9 @@ slim = tf.contrib.slim
 
 
 class ModelIndex(object):
-    def __init__(self, sess):
+    def __init__(self, sess, loop_count):
         self.sess = sess
+        self.loop_count = loop_count
 
         self._init_placeholder()
 
@@ -72,8 +73,8 @@ class ModelIndex(object):
 
                 with tf.variable_scope('Branch_1'):
                     branch_1 = slim.conv2d(data, 8, [1, 1], scope='Conv2d_1a_1x1')
-                    branch_1 = slim.conv2d(branch_1, 10, [1, 6], scope='Conv2d_1b_1x7')
-                    branch_1 = slim.conv2d(branch_1, 12, [6, 1], scope='Conv2d_1c_7x1')
+                    branch_1 = slim.conv2d(branch_1, 10, [1, 6], scope='Conv2d_1b_1x6')
+                    branch_1 = slim.conv2d(branch_1, 12, [6, 1], scope='Conv2d_1c_6x1')
 
                 mixed = tf.concat(values=[branch_0, branch_1], axis=3)
                 up = slim.conv2d(mixed, data.get_shape()[3], 1, normalizer_fn=None,
@@ -106,15 +107,15 @@ class ModelIndex(object):
         with slim.arg_scope([slim.conv2d, slim.avg_pool2d, slim.max_pool2d], stride=1, padding='SAME'):
             with tf.variable_scope(None, 'reduction_A', [data]):
                 with tf.variable_scope('Branch_0'):
-                    branch_0 = slim.max_pool2d(data, [3, 3], padding="VALID", stride=1)
+                    branch_0 = slim.max_pool2d(data, [3, 3], padding="VALID", stride=1, scope='MaxPool2d_0a_3x3')
 
                 with tf.variable_scope('Branch_1'):
-                    branch_1 = slim.conv2d(data, 5, [3, 3], padding="VALID", stride=1)
+                    branch_1 = slim.conv2d(data, 5, [3, 3], padding="VALID", stride=1, scope='Conv2d_1a_3x3')
 
                 with tf.variable_scope('Branch_2'):
-                    branch_2 = slim.conv2d(data, 2, [1, 1])
-                    branch_2 = slim.conv2d(branch_2, 2, [3, 3])
-                    branch_2 = slim.conv2d(branch_2, 5, [3, 3], padding="VALID", stride=1)
+                    branch_2 = slim.conv2d(data, 2, [1, 1], scope='Conv2d_2a_1x1')
+                    branch_2 = slim.conv2d(branch_2, 2, [3, 3], scope='Conv2d_2b_3x3')
+                    branch_2 = slim.conv2d(branch_2, 5, [3, 3], padding="VALID", stride=1, scope='Conv2d_2c_3x3')
 
                 return slim.conv2d(tf.concat(values=[branch_0, branch_1, branch_2], axis=3), 15, [1, 1],
                                    scope='Conv2d_result_1x1')
@@ -158,15 +159,15 @@ class ModelIndex(object):
         print(index_data)
 
         ################################################################################### inception with index data
-        index_inception_a = slim.repeat(index_data, 2, self.inception_a)
+        index_inception_a = slim.repeat(index_data, self.loop_count[0], self.inception_a)
         index_reduction_a = self.reduction_a(index_inception_a)
         print(index_reduction_a)
 
-        index_inception_b = slim.repeat(index_reduction_a, 3, self.inception_b)
+        index_inception_b = slim.repeat(index_reduction_a, self.loop_count[1], self.inception_b)
         index_reduction_b = self.reduction_b(index_inception_b)
         print(index_reduction_b)
 
-        index_inception_c = slim.repeat(index_reduction_b, 1, self.inception_c)
+        index_inception_c = slim.repeat(index_reduction_b, self.loop_count[2], self.inception_c)
         print(index_inception_c)
 
         output = slim.max_pool2d(index_inception_c, [2, 2], padding="VALID", stride=1)

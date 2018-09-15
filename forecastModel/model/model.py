@@ -19,13 +19,13 @@ slim = tf.contrib.slim
 
 
 class Model(object):
-    def __init__(self, sess, root_dir):
+    def __init__(self, sess, root_dir, index_model_loop_count, title_model_loop_count):
         self.sess = sess
         self.root_dir = root_dir
         self.epoch = 600
         self.dataPath = os.path.join(self.root_dir, 'data', 'data')
-        self.index_model = ModelIndex(self.sess)
-        self.title_model = ModelTitle(self.sess)
+        self.index_model = ModelIndex(self.sess, index_model_loop_count)
+        self.title_model = ModelTitle(self.sess, title_model_loop_count)
 
         self._init_placeholder()
 
@@ -84,7 +84,18 @@ class Model(object):
         self.acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     def get_predict(self):
-        pass
+        saver = tf.train.Saver()
+        checkpoint = tf.train.get_checkpoint_state(os.path.join('trainedModel'))
+        saver.restore(self.sess, checkpoint.model_checkpoint_path)
+        print("Successfully loaded:", checkpoint.model_checkpoint_path)
+
+        # tp = 0
+        # for i in range(len(harg)):
+        #     if harg[i] == targ[i]:
+        #         if harg[i] == 1:
+        #             tp += 1
+        # print('{} : {}(acc), {}(recall), {}(precision)'.format(company_index.split('.')[0],
+        #                                                        acc, tp / targ.count(1), tp / harg.count(1)))
 
     def get_accuracy(self, index_data, title_data, target):
         return self.sess.run([self.hypothesis, self.acc, self.h_argmax, self.t_argmax],
@@ -108,44 +119,27 @@ class Model(object):
                                         self.index_model.index_input7: index_data[6], self.index_model.index_input8: index_data[7],
                                         self.target: target, self.index_model.dropout_rate: dropout_rate})
 
-    def run(self, isTraining=True):
-        dir_name = 'train'
-        if not isTraining:
-            saver = tf.train.Saver()
-            checkpoint = tf.train.get_checkpoint_state('trainedModel')
-            saver.restore(self.sess, checkpoint.model_checkpoint_path)
-            dir_name = 'test'
-            print("Successfully loaded:", checkpoint.model_checkpoint_path)
-
+    def run(self):
         total_acc = 0.0
-        data_list = os.listdir(os.path.join(self.dataPath, dir_name, 'index'))
+        data_list = os.listdir(os.path.join(self.dataPath, 'test', 'index'))
         for company_index in data_list:
-            fp = open(os.path.join(self.dataPath, dir_name, 'title', company_index), 'rb')
+            fp = open(os.path.join(self.dataPath, 'test', 'title', company_index), 'rb')
             title_data = [np.array(data) for data in pickle.load(fp)]
             fp.close()
 
-            fp = open(os.path.join(self.dataPath, dir_name, 'index', company_index), 'rb')
+            fp = open(os.path.join(self.dataPath, 'test', 'index', company_index), 'rb')
             index_data = [np.array(data) for data in pickle.load(fp)]
             fp.close()
 
-            fp = open(os.path.join(self.dataPath, dir_name, 'target', company_index), 'rb')
+            fp = open(os.path.join(self.dataPath, 'test', 'target', company_index), 'rb')
             target = [np.array(data) for data in pickle.load(fp)]
             fp.close()
 
             prediction, acc, harg, targ = self.get_accuracy(index_data, title_data, target)
 
             total_acc += acc
-            if not isTraining:
-                tp = 0
-                for i in range(len(harg)):
-                    if harg[i] == targ[i]:
-                        if harg[i] == 1:
-                            tp += 1
-                print('{} : {}(acc), {}(recall), {}(precision)'.format(company_index.split('.')[0],
-                                                                       acc, tp/targ.count(1), tp/harg.count(1)))
 
-        if isTraining:
-            return total_acc
+        return total_acc / len(data_list)
 
     def training(self):
         tf.set_random_seed(410)  # reproducibility

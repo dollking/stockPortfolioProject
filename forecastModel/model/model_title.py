@@ -18,8 +18,10 @@ slim = tf.contrib.slim
 
 
 class ModelTitle(object):
-    def __init__(self, sess):
+    def __init__(self, sess, loot_count):
         self.sess = sess
+        self.loop_count = loot_count
+
         self._init_placeholder()
 
         print('isOK')
@@ -107,15 +109,15 @@ class ModelTitle(object):
         with slim.arg_scope([slim.conv2d, slim.avg_pool2d, slim.max_pool2d], stride=1, padding='SAME'):
             with tf.variable_scope(None, 'reduction_A', [data]):
                 with tf.variable_scope('Branch_0'):
-                    branch_0 = slim.max_pool2d(data, [3, 3], padding="VALID", stride=2)
+                    branch_0 = slim.max_pool2d(data, [3, 3], padding="VALID", stride=2, scope='MaxPool2d_0a_3x3')
 
                 with tf.variable_scope('Branch_1'):
-                    branch_1 = slim.conv2d(data, 24, [3, 3], padding="VALID", stride=2)
+                    branch_1 = slim.conv2d(data, 24, [3, 3], padding="VALID", stride=2, scope='Conv2d_1a_3x3')
 
                 with tf.variable_scope('Branch_2'):
-                    branch_2 = slim.conv2d(data, 16, [1, 1])
-                    branch_2 = slim.conv2d(branch_2, 16, [3, 3])
-                    branch_2 = slim.conv2d(branch_2, 24, [3, 3], padding="VALID", stride=(2, 2))
+                    branch_2 = slim.conv2d(data, 16, [1, 1], scope='Conv2d_2a_1x1')
+                    branch_2 = slim.conv2d(branch_2, 16, [3, 3], scope='Conv2d_2b_3x3')
+                    branch_2 = slim.conv2d(branch_2, 24, [3, 3], padding="VALID", stride=(2, 2), scope='Conv2d_2c_3x3')
 
                 return slim.conv2d(tf.concat(values=[branch_0, branch_1, branch_2], axis=3), 52, [1, 1],
                                    scope='Conv2d_result_1x1')
@@ -156,15 +158,15 @@ class ModelTitle(object):
         print(title_data)
 
         ################################################################################### inception with title data
-        title_inception_a = slim.repeat(title_data, 2, self.inception_a)    ### 2/3/1
+        title_inception_a = slim.repeat(title_data, self.loop_count[0], self.inception_a)    ### 2/3/1
         title_reduction_a = self.reduction_a(title_inception_a)
         print(title_reduction_a)
 
-        title_inception_b = slim.repeat(title_reduction_a, 3, self.inception_b)
+        title_inception_b = slim.repeat(title_reduction_a, self.loop_count[1], self.inception_b)
         title_reduction_b = self.reduction_b(title_inception_b)
         print(title_reduction_b)
 
-        title_inception_c = slim.repeat(title_reduction_b, 1, self.inception_c)
+        title_inception_c = slim.repeat(title_reduction_b, self.loop_count[2], self.inception_c)
         print(title_inception_c)
 
         output_title = tf.layers.average_pooling2d(inputs=title_inception_c, pool_size=[3, 3], padding="VALID",
