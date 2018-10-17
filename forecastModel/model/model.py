@@ -37,13 +37,29 @@ class Model(object):
         self.best = 0.0
         self.training_best = 0.0
         self.validation_best = 0.0
-
+        self.test_best = 0.0
+        self.temp_size = 0
         self.model()
 
         print('isOK')
 
     def _init_placeholder(self):
         self.target = tf.placeholder(dtype=tf.float32, shape=[None, 2])
+
+    def load_data(self, root_data_path, company_name):
+        fp = open(os.path.join(root_data_path, 'title', company_name + '.pkl'), 'rb')
+        title_data = [np.array(data) for data in pickle.load(fp)]
+        fp.close()
+
+        fp = open(os.path.join(root_data_path, 'index', company_name + '.pkl'), 'rb')
+        index_data = [np.array(data) for data in pickle.load(fp)]
+        fp.close()
+
+        fp = open(os.path.join(root_data_path, 'target', company_name + '.pkl'), 'rb')
+        target = [np.array(data) for data in pickle.load(fp)]
+        fp.close()
+
+        return index_data, title_data, target
 
     def model(self):
         output_index, inter_output_index = self.index_model.model()
@@ -83,119 +99,94 @@ class Model(object):
         correct_prediction = tf.equal(self.h_argmax, self.t_argmax)
         self.acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-    def get_predict(self):
+    def forecast(self, root_data_path, model_path, company_name):
         saver = tf.train.Saver()
-        checkpoint = tf.train.get_checkpoint_state(os.path.join('trainedModel'))
+        print(os.path.join(model_path, company_name))
+        checkpoint = tf.train.get_checkpoint_state(os.path.join(model_path, company_name))
+
         saver.restore(self.sess, checkpoint.model_checkpoint_path)
         print("Successfully loaded:", checkpoint.model_checkpoint_path)
+        index, title, target = self.load_data(root_data_path, company_name)
 
-        # tp = 0
-        # for i in range(len(harg)):
-        #     if harg[i] == targ[i]:
-        #         if harg[i] == 1:
-        #             tp += 1
-        # print('{} : {}(acc), {}(recall), {}(precision)'.format(company_index.split('.')[0],
-        #                                                        acc, tp / targ.count(1), tp / harg.count(1)))
+        return self.get_accuracy(index, title, target)
 
     def get_accuracy(self, index_data, title_data, target):
-        return self.sess.run([self.hypothesis, self.acc, self.h_argmax, self.t_argmax],
-                             feed_dict={self.title_model.title_input1: title_data[0], self.title_model.title_input2: title_data[1],
-                                        self.title_model.title_input3: title_data[2], self.title_model.title_input4: title_data[3],
-                                        self.title_model.title_input5: title_data[4], self.title_model.title_input6: title_data[5],
-                                        self.index_model.index_input1: index_data[0], self.index_model.index_input2: index_data[1],
-                                        self.index_model.index_input3: index_data[2], self.index_model.index_input4: index_data[3],
-                                        self.index_model.index_input5: index_data[4], self.index_model.index_input6: index_data[5],
-                                        self.index_model.index_input7: index_data[6], self.index_model.index_input8: index_data[7],
-                                        self.target: target, self.index_model.dropout_rate: 1.0})
+        hypothesis, acc, h_arg, t_arg = self.sess.run([self.hypothesis, self.acc, self.h_argmax, self.t_argmax],
+                                                      feed_dict={self.title_model.title_input1: title_data[0],
+                                                                 self.title_model.title_input2: title_data[1],
+                                                                 self.title_model.title_input3: title_data[2],
+                                                                 self.title_model.title_input4: title_data[3],
+                                                                 self.title_model.title_input5: title_data[4],
+                                                                 self.title_model.title_input6: title_data[5],
+                                                                 self.index_model.index_input1: index_data[0],
+                                                                 self.index_model.index_input2: index_data[1],
+                                                                 self.index_model.index_input3: index_data[2],
+                                                                 self.index_model.index_input4: index_data[3],
+                                                                 self.index_model.index_input5: index_data[4],
+                                                                 self.index_model.index_input6: index_data[5],
+                                                                 self.index_model.index_input7: index_data[6],
+                                                                 self.index_model.index_input8: index_data[7],
+                                                                 self.target: target,
+                                                                 self.index_model.dropout_rate: 1.0})
+        h_arg, t_arg = list(h_arg), list(t_arg)
+        cnt = sum([(a == 1 and a == b) for a, b in zip(h_arg, t_arg)])
+
+        return hypothesis, acc, cnt / t_arg.count(1), (cnt / h_arg.count(1) if h_arg.count(1) else 0.)
 
     def train(self, index_data, title_data, target, dropout_rate=0.7):
         return self.sess.run([self.cost, self.opt],
-                             feed_dict={self.title_model.title_input1: title_data[0], self.title_model.title_input2: title_data[1],
-                                        self.title_model.title_input3: title_data[2], self.title_model.title_input4: title_data[3],
-                                        self.title_model.title_input5: title_data[4], self.title_model.title_input6: title_data[5],
-                                        self.index_model.index_input1: index_data[0], self.index_model.index_input2: index_data[1],
-                                        self.index_model.index_input3: index_data[2], self.index_model.index_input4: index_data[3],
-                                        self.index_model.index_input5: index_data[4], self.index_model.index_input6: index_data[5],
-                                        self.index_model.index_input7: index_data[6], self.index_model.index_input8: index_data[7],
+                             feed_dict={self.title_model.title_input1: title_data[0],
+                                        self.title_model.title_input2: title_data[1],
+                                        self.title_model.title_input3: title_data[2],
+                                        self.title_model.title_input4: title_data[3],
+                                        self.title_model.title_input5: title_data[4],
+                                        self.title_model.title_input6: title_data[5],
+                                        self.index_model.index_input1: index_data[0],
+                                        self.index_model.index_input2: index_data[1],
+                                        self.index_model.index_input3: index_data[2],
+                                        self.index_model.index_input4: index_data[3],
+                                        self.index_model.index_input5: index_data[4],
+                                        self.index_model.index_input6: index_data[5],
+                                        self.index_model.index_input7: index_data[6],
+                                        self.index_model.index_input8: index_data[7],
                                         self.target: target, self.index_model.dropout_rate: dropout_rate})
 
-    def run(self):
-        total_acc = 0.0
-        data_list = os.listdir(os.path.join(self.dataPath, 'test', 'index'))
-        for company_index in data_list:
-            fp = open(os.path.join(self.dataPath, 'test', 'title', company_index), 'rb')
-            title_data = [np.array(data) for data in pickle.load(fp)]
-            fp.close()
+    def test(self, company_name):
+        index_data, title_data, target = self.load_data(os.path.join(self.dataPath, 'test'), company_name)
+        _, total_acc, _, _ = self.get_accuracy(index_data, title_data, target)
 
-            fp = open(os.path.join(self.dataPath, 'test', 'index', company_index), 'rb')
-            index_data = [np.array(data) for data in pickle.load(fp)]
-            fp.close()
+        return total_acc
 
-            fp = open(os.path.join(self.dataPath, 'test', 'target', company_index), 'rb')
-            target = [np.array(data) for data in pickle.load(fp)]
-            fp.close()
-
-            prediction, acc, harg, targ = self.get_accuracy(index_data, title_data, target)
-
-            total_acc += acc
-
-        return total_acc / len(data_list)
-
-    def training(self):
+    def training(self, company_name):
         tf.set_random_seed(410)  # reproducibility
 
         figure_fp = open('figure.txt', 'a')
 
-        model_save_path = os.path.join(self.root_dir, 'trainedModel')
+        model_save_path = os.path.join(self.root_dir, 'trainedModel', company_name)
         os.mkdir(model_save_path)
-
-        data_list = os.listdir(os.path.join(self.dataPath, 'train', 'index'))
 
         saver = tf.train.Saver()
         self.sess.run(tf.global_variables_initializer())
 
+        index_data, title_data, target = self.load_data(os.path.join(self.dataPath, 'train'), company_name)
+        self.temp_size = int(len(target) * 0.7)
         for ep in range(self.epoch):
-            training_acc = 0.0
-            training_loss = 0.0
-
-            for company_index in data_list[:70]:
-                fp = open(os.path.join(self.dataPath, 'train', 'title', company_index), 'rb')
-                title_data = [np.array(data) for data in pickle.load(fp)]
-                fp.close()
-
-                fp = open(os.path.join(self.dataPath, 'train', 'index', company_index), 'rb')
-                index_data = [np.array(data) for data in pickle.load(fp)]
-                fp.close()
-
-                fp = open(os.path.join(self.dataPath, 'train', 'target', company_index), 'rb')
-                target = [np.array(data) for data in pickle.load(fp)]
-                fp.close()
-
-                loss, opt = self.train(index_data, title_data, target)
-                training_loss += loss
+            training_loss, _ = self.train([data[:self.temp_size] for data in index_data],
+                                          [data[:self.temp_size] for data in title_data],
+                                          target[:self.temp_size])
 
             ########################################################################################################
             #  check accuracy
-            for company_index in data_list[:70]:
-                fp = open(os.path.join(self.dataPath, 'train', 'title', company_index), 'rb')
-                title_data = [np.array(data) for data in pickle.load(fp)]
-                fp.close()
+            _, training_acc, _, _ = self.get_accuracy([data[:self.temp_size] for data in index_data],
+                                                      [data[:self.temp_size] for data in title_data],
+                                                      target[:self.temp_size])
 
-                fp = open(os.path.join(self.dataPath, 'train', 'index', company_index), 'rb')
-                index_data = [np.array(data) for data in pickle.load(fp)]
-                fp.close()
+            _, validation_acc, recall, precision = self.get_accuracy([data[self.temp_size:] for data in index_data],
+                                                                     [data[self.temp_size:] for data in title_data],
+                                                                     target[self.temp_size:])
 
-                fp = open(os.path.join(self.dataPath, 'train', 'target', company_index), 'rb')
-                target = [np.array(data) for data in pickle.load(fp)]
-                fp.close()
-
-                _, acc, _, _ = self.get_accuracy(index_data, title_data, target)
-                training_acc += acc
-
-            training_acc /= len(data_list[:70])
-            training_loss /= len(data_list[:70])
-            if self.past > training_acc and self.max_cnt < 4:
-                if self.cnt == 3:
+            if self.past >= (training_acc*0.45 + validation_acc*0.55) and self.max_cnt < 4:
+                if self.cnt == 2:
                     self.cnt = 0
                     self.learningRate /= 2
                     self.max_cnt += 1
@@ -204,41 +195,20 @@ class Model(object):
                     self.cnt += 1
             else:
                 self.cnt = 0
-            self.past = training_acc
+            self.past = training_acc*0.45 + validation_acc*0.55
 
-            validation_acc = 0.0
-            target_list, hypothesis_list = list(), list()
-            for company_index in data_list[70:]:
-                fp = open(os.path.join(self.dataPath, 'train', 'title', company_index), 'rb')
-                title_data = [np.array(data) for data in pickle.load(fp)]
-                fp.close()
-
-                fp = open(os.path.join(self.dataPath, 'train', 'index', company_index), 'rb')
-                index_data = [np.array(data) for data in pickle.load(fp)]
-                fp.close()
-
-                fp = open(os.path.join(self.dataPath, 'train', 'target', company_index), 'rb')
-                target = [np.array(data) for data in pickle.load(fp)]
-                fp.close()
-
-                _, acc, harg, targ = self.get_accuracy(index_data, title_data, target)
-                target_list.extend(targ)
-                hypothesis_list.extend(harg)
-                validation_acc += acc
-
-            validation_acc /= len(data_list[70:])
-
-            test_acc = self.run()
-            if self.best < (validation_acc*0.5 + training_acc*0.5) and test_acc > 0.6:
-                print('save point result :', validation_acc, training_acc, test_acc)
+            test_acc = self.test(company_name)
+            if self.best < validation_acc + training_acc and abs(training_acc - validation_acc) < 0.1 and (
+                    recall > 0 and precision > 0):
+                print('save point result :', training_acc, validation_acc, test_acc)
                 saver.save(self.sess, os.path.join(model_save_path, 'model'))
                 self.training_best = training_acc
                 self.validation_best = validation_acc
-
-                self.best = validation_acc * 0.5 + training_acc * 0.5
-
-            figure_fp.write('{}, {}, {}, {}\n'.format(training_acc, training_loss, validation_acc, test_acc))
-            shuffle(data_list)
+                self.test_best = test_acc
+                self.best = validation_acc + training_acc
 
             if not (ep + 1) % 5:
-                print('epoch{} :'.format(ep + 1), training_acc, validation_acc, test_acc)
+                print('epoch{} :'.format(ep + 1), training_acc, validation_acc, test_acc, recall, precision)
+
+        figure_fp.write(
+            '{}, {}, {}, {}\n'.format(company_name, self.training_best, self.validation_best, self.test_best))

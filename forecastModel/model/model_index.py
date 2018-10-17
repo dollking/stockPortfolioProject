@@ -47,11 +47,12 @@ class ModelIndex(object):
         with slim.arg_scope([slim.conv2d, slim.avg_pool2d, slim.max_pool2d], stride=1, padding='SAME'):
             with tf.variable_scope(scope, 'BlockInceptionA', [data], reuse=reuse):
                 with tf.variable_scope('Branch_0'):
-                    branch_0 = slim.conv2d(data, 2, [1, 1], scope='Conv2d_0a_1x1')
+                    branch_0 = slim.conv2d(data, 2, [1, 3], scope='Conv2d_0a_1x3')
+                    branch_0 = slim.conv2d(branch_0, 2, [3, 1], scope='Conv2d_0a_3x1')
 
                 with tf.variable_scope('Branch_1'):
-                    branch_1 = slim.conv2d(data, 2, [1, 1], scope='Conv2d_1a_1x1')
-                    branch_1 = slim.conv2d(branch_1, 2, [3, 3], scope='Conv2d_1b_3x3')
+                    branch_1 = slim.conv2d(data, 2, [3, 3], scope='Conv2d_1a_3x3')
+                    branch_1 = slim.conv2d(branch_1, 2, [5, 5], scope='Conv2d_1b_5x5')
 
                 with tf.variable_scope('Branch_2'):
                     branch_2 = slim.conv2d(data, 2, [1, 1], scope='Conv2d_2a_1x1')
@@ -69,12 +70,13 @@ class ModelIndex(object):
         with slim.arg_scope([slim.conv2d, slim.avg_pool2d, slim.max_pool2d], stride=1, padding='SAME'):
             with tf.variable_scope(scope, 'BlockInceptionB', [data], reuse=reuse):
                 with tf.variable_scope('Branch_0'):
-                    branch_0 = slim.conv2d(data, 12, [1, 1], scope='Conv2d_0a_1x1')
+                    branch_0 = slim.conv2d(data, 12, [1, 3], scope='Conv2d_0a_1x3')
+                    branch_0 = slim.conv2d(branch_0, 12, [3, 1], scope='Conv2d_0a_3x1')
 
                 with tf.variable_scope('Branch_1'):
                     branch_1 = slim.conv2d(data, 8, [1, 1], scope='Conv2d_1a_1x1')
-                    branch_1 = slim.conv2d(branch_1, 10, [1, 6], scope='Conv2d_1b_1x6')
-                    branch_1 = slim.conv2d(branch_1, 12, [6, 1], scope='Conv2d_1c_6x1')
+                    branch_1 = slim.conv2d(branch_1, 10, [1, 5], scope='Conv2d_1b_1x5')
+                    branch_1 = slim.conv2d(branch_1, 12, [5, 1], scope='Conv2d_1c_5x1')
 
                 mixed = tf.concat(values=[branch_0, branch_1], axis=3)
                 up = slim.conv2d(mixed, data.get_shape()[3], 1, normalizer_fn=None,
@@ -88,7 +90,7 @@ class ModelIndex(object):
         with slim.arg_scope([slim.conv2d, slim.avg_pool2d, slim.max_pool2d], stride=1, padding='SAME'):
             with tf.variable_scope(scope, 'BlockInceptionC', [data], reuse=reuse):
                 with tf.variable_scope('Branch_0'):
-                    branch_0 = slim.conv2d(data, 12, [1, 1], scope='Conv2d_0a_1x1')
+                    branch_0 = slim.conv2d(data, 12, [2, 2], scope='Conv2d_0a_2x2')
 
                 with tf.variable_scope('Branch_1'):
                     branch_1 = slim.conv2d(data, 12, [1, 1], scope='Conv2d_1a_1x1')

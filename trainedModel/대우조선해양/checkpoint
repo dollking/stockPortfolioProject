@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/algorithm/stockProject/stockPortfolioProject/trainedModel/\353\214\200\354\232\260\354\241\260\354\204\240\355\225\264\354\226\221/model"
+all_model_checkpoint_paths: "/home/algorithm/stockProject/stockPortfolioProject/trainedModel/\353\214\200\354\232\260\354\241\260\354\204\240\355\225\264\354\226\221/model"

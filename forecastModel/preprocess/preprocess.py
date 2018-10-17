@@ -21,6 +21,7 @@ class Preprocessing(object):
         self.train_data_path = os.path.join(self.root_path, 'data', 'raw_data_train')
         self.test_data_path = os.path.join(self.root_path, 'data', 'raw_data_test')
         self.savePath = os.path.join(self.root_path, 'data', 'pklData')
+        self.ga_data_path = os.path.join(self.root_path, 'data', 'genetic_data')
 
         self.train_date_list = list()
         self.test_date_list = list()
@@ -208,7 +209,7 @@ class Preprocessing(object):
             data = list()
             for i in range(self.predictStartPos, len(train)):
                 r = self.rate(train[self.train_date_list[i]][3], train[self.train_date_list[i - 1]][3])
-                if r < 0.4:
+                if r < 0.38:
                     data.append([1.0, 0.0])
                 else:
                     data.append([0.0, 1.0])
@@ -220,7 +221,7 @@ class Preprocessing(object):
             data = list()
             for i in range(self.predictStartPos, len(test)):
                 r = self.rate(test[self.test_date_list[i]][3], test[self.test_date_list[i - 1]][3])
-                if r < 0.5:
+                if r < 0.38:
                     data.append([1.0, 0.0])
                 else:
                     data.append([0.0, 1.0])
@@ -298,6 +299,32 @@ class Preprocessing(object):
             cnt += 1
         print()
 
+    def make_ga_data(self):
+        cnt = 1
+        for com in os.listdir(self.vec_path):
+            train = pickle.load(open(os.path.join(self.train_path, com), 'rb'))
+            test = pickle.load(open(os.path.join(self.test_path, com), 'rb'))
+
+            data = list()
+            for i in range(self.predictStartPos, len(train)):
+                data.append(self.rate(train[self.train_date_list[i]][3], train[self.train_date_list[i]][0]))
+
+            fw_test = open(os.path.join(self.ga_data_path, 'train', com), 'wb')
+            pickle.dump(data, fw_test)
+            fw_test.close()
+
+            data = list()
+            for i in range(self.predictStartPos, len(test)):
+                data.append(self.rate(test[self.test_date_list[i]][3], test[self.test_date_list[i]][0]))
+
+            fw_test = open(os.path.join(self.ga_data_path, 'test', com), 'wb')
+            pickle.dump(data, fw_test)
+            fw_test.close()
+
+            self.progress(cnt / len(os.listdir(self.vec_path)), 'GA data')
+            cnt += 1
+        print()
+
     def preprocessing(self):
         tmp = pickle.load(open(os.path.join(self.train_path, 'LG.pkl'), 'rb'))
         self.train_date_list = list(tmp.keys())
@@ -310,3 +337,4 @@ class Preprocessing(object):
         self.make_index_data()
         self.make_title_data()
         self.make_target_data()
+        self.make_ga_data()
