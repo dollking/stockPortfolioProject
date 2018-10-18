@@ -28,6 +28,12 @@ class Preprocessing(object):
 
         self.linear_x = [i for i in range(1, 6)]
 
+    def check_data(self, data):
+        for i in data.keys():
+            if data[i][4] == 0:
+                data[i][0], data[i][1], data[i][2] = data[i][3], data[i][3], data[i][3]
+        return data
+
     def progress(self, rate, name):
         cnt = int(rate * 30)
         char = '#' * cnt + '-' * (30 - cnt)
@@ -203,8 +209,8 @@ class Preprocessing(object):
     def make_target_data(self):
         cnt = 1
         for com in os.listdir(self.vec_path):
-            train = pickle.load(open(os.path.join(self.train_path, com), 'rb'))
-            test = pickle.load(open(os.path.join(self.test_path, com), 'rb'))
+            train = self.check_data(pickle.load(open(os.path.join(self.train_path, com), 'rb')))
+            test = self.check_data(pickle.load(open(os.path.join(self.test_path, com), 'rb')))
 
             data = list()
             for i in range(self.predictStartPos, len(train)):
@@ -264,8 +270,8 @@ class Preprocessing(object):
     def make_index_data(self):
         cnt = 1
         for com in os.listdir(self.vec_path):
-            train = pickle.load(open(os.path.join(self.train_path, com), 'rb'))
-            test = pickle.load(open(os.path.join(self.test_path, com), 'rb'))
+            train = self.check_data(pickle.load(open(os.path.join(self.train_path, com), 'rb')))
+            test = self.check_data(pickle.load(open(os.path.join(self.test_path, com), 'rb')))
 
             temp = []
             temp.append(self.MACD(train))
@@ -302,8 +308,8 @@ class Preprocessing(object):
     def make_ga_data(self):
         cnt = 1
         for com in os.listdir(self.vec_path):
-            train = pickle.load(open(os.path.join(self.train_path, com), 'rb'))
-            test = pickle.load(open(os.path.join(self.test_path, com), 'rb'))
+            train = self.check_data(pickle.load(open(os.path.join(self.train_path, com), 'rb')))
+            test = self.check_data(pickle.load(open(os.path.join(self.test_path, com), 'rb')))
 
             data = list()
             for i in range(self.predictStartPos, len(train)):
